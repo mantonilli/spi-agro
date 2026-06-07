@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>SPI Agro — Predicción de Sequía e Inundación</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bd:rgba(255,255,255,0.1);
+      --tx:#e6edf3;--tx2:#8b949e;--tx3:#6e7681;
+      --blue:#3B8BD4;--green:#27A567;--green2:#0B6E3F;
+      --amber:#E24B4A;--red:#9B2020;--r:12px;--rs:8px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+     background:var(--bg);color:var(--tx);min-height:100vh;max-width:430px;margin:0 auto}
+
+.header{background:var(--bg);padding:50px 20px 14px;position:sticky;top:0;z-index:10;
+        border-bottom:.5px solid var(--bd)}
+.header-top{display:flex;justify-content:space-between;align-items:flex-start}
+.header h1{font-size:22px;font-weight:600;letter-spacing:-.5px}
+.header-sub{font-size:13px;color:var(--tx2);margin-top:2px}
+.refresh-btn{background:var(--bg3);border:.5px solid var(--bd);border-radius:var(--rs);
+             color:var(--tx2);padding:6px 10px;font-size:13px;cursor:pointer;
+             display:flex;align-items:center;gap:5px}
+.refresh-btn:active{opacity:.7}
+
+.zona-scroll{display:flex;gap:8px;overflow-x:auto;padding:10px 20px;scrollbar-width:none}
+.zona-scroll::-webkit-scrollbar{display:none}
+.zona-pill{flex-shrink:0;padding:6px 14px;border-radius:20px;border:.5px solid var(--bd);
+           background:var(--bg2);color:var(--tx2);font-size:13px;cursor:pointer;white-space:nowrap}
+.zona-pill.active{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:500}
+
+.content{padding:0 16px 100px}
+
+/* SPI Card */
+.spi-main{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--r);
+          padding:18px 20px;margin-bottom:10px}
+.spi-label{font-size:11px;color:var(--tx2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+.spi-value-row{display:flex;align-items:baseline;gap:12px;margin-bottom:4px}
+.spi-number{font-size:50px;font-weight:700;letter-spacing:-2px;line-height:1}
+.spi-cat{font-size:15px;font-weight:500}
+.spi-meta{font-size:11px;color:var(--tx3);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
+
+/* Gauge */
+.gauge{margin:14px 0 2px}
+.gauge-track{height:6px;border-radius:3px;
+             background:linear-gradient(to right,#9B2020 0%,#E24B4A 20%,#facc15 38%,#3B8BD4 50%,#27A567 75%,#0B6E3F 100%);
+             position:relative}
+.gauge-needle{width:14px;height:14px;background:#fff;border:2.5px solid #fff;border-radius:50%;
+              position:absolute;top:-4px;transform:translateX(-50%);
+              box-shadow:0 0 0 2px rgba(0,0,0,.5);transition:left .5s cubic-bezier(.34,1.56,.64,1)}
+.gauge-ends{display:flex;justify-content:space-between;font-size:10px;color:var(--tx3);margin-top:5px}
+
+/* Alert */
+.alert-box{border-radius:var(--rs);padding:12px 14px;margin-bottom:10px;
+           display:flex;gap:10px;align-items:flex-start;border:.5px solid}
+.alert-icon{font-size:18px;flex-shrink:0}
+.alert-title{font-size:13px;font-weight:600}
+.alert-body{font-size:12px;opacity:.85;margin-top:3px;line-height:1.5}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.stat-card{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rs);padding:12px 14px}
+.stat-label{font-size:11px;color:var(--tx2);margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:600}
+.stat-sub{font-size:11px;color:var(--tx3);margin-top:2px}
+
+/* ENSO badge */
+.enso-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;
+            padding:5px 12px;border-radius:20px;margin-bottom:10px}
+
+/* Predicción */
+.section-title{font-size:11px;font-weight:500;color:var(--tx2);margin:14px 0 8px;
+               text-transform:uppercase;letter-spacing:.06em}
+.pred-list{display:flex;flex-direction:column;gap:5px}
+.pred-row{display:grid;grid-template-columns:78px 1fr 46px;align-items:center;gap:8px;
+          background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rs);
+          padding:9px 12px}
+.pred-date{font-size:12px;color:var(--tx2)}
+.pred-bar-wrap{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.pred-bar{height:100%;border-radius:3px}
+.pred-val{font-size:13px;font-weight:600;text-align:right}
+
+/* Sparkline */
+.spark-wrap{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rs);
+            padding:12px 14px;margin-bottom:10px}
+.spark-title{font-size:11px;color:var(--tx2);margin-bottom:8px}
+canvas{display:block;width:100%}
+
+/* Métricas */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.metric-card{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--rs);
+             padding:12px 14px;text-align:center}
+.metric-val{font-size:22px;font-weight:600;color:var(--blue)}
+.metric-lbl{font-size:11px;color:var(--tx2);margin-top:3px}
+.skill-bar{background:var(--bg3);border-radius:4px;height:8px;margin:6px 0 2px;overflow:hidden}
+.skill-fill{height:100%;border-radius:4px;background:linear-gradient(to right,var(--amber),var(--green))}
+.precision-row{display:flex;justify-content:space-between;padding:6px 0;
+               border-bottom:.5px solid var(--bd);font-size:12px}
+.precision-row:last-child{border-bottom:none}
+
+/* Loading/Error */
+.loading{display:flex;flex-direction:column;align-items:center;
+         justify-content:center;padding:60px 20px;gap:12px;color:var(--tx2);font-size:14px}
+.spinner{width:30px;height:30px;border:2px solid var(--bg3);
+         border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:rgba(155,32,32,.15);border:.5px solid var(--red);border-radius:var(--r);
+           padding:16px;text-align:center;font-size:13px;color:#f87171}
+
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+            width:100%;max-width:430px;background:rgba(13,17,23,.96);
+            backdrop-filter:blur(10px);border-top:.5px solid var(--bd);
+            display:flex;padding:8px 0 20px;z-index:20}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;
+           gap:3px;font-size:10px;color:var(--tx2);cursor:pointer;padding:4px 0}
+.bnav-item.active{color:var(--blue)}
+.bnav-icon{font-size:20px}
+
+.info-section{display:none}
+.info-section.active{display:block}
+.main-section.hidden{display:none}
+.info-card{background:var(--bg2);border:.5px solid var(--bd);border-radius:var(--r);
+           padding:16px;margin-bottom:10px}
+.info-card h3{font-size:14px;font-weight:500;margin-bottom:10px}
+.info-row{display:flex;justify-content:space-between;align-items:center;
+          padding:8px 0;border-bottom:.5px solid var(--bd);font-size:13px}
+.info-row:last-child{border-bottom:none}
+.info-val{font-weight:500;color:var(--blue)}
+.step-item{display:flex;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.5}
+.step-num{min-width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;
+          font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.scale-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:.5px solid var(--bd);font-size:12px}
+.scale-row:last-child{border-bottom:none}
+.cdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tag-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tag{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--bg3);
+     border:.5px solid var(--bd);color:var(--tx2)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>SPI Agro</h1>
+      <div class="header-sub" id="header-sub">Cargando...</div>
+    </div>
+    <button class="refresh-btn" onclick="cargarDatos()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="zona-scroll" id="zona-scroll"></div>
+
+<div class="content main-section" id="main-section">
+  <div id="main-content">
+    <div class="loading"><div class="spinner"></div>Obteniendo datos climáticos...</div>
+  </div>
+</div>
+
+<div class="content info-section" id="info-section">
+  <div class="section-title">Métricas del modelo real</div>
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="metric-val">0.72</div><div class="metric-lbl">RMSE</div></div>
+    <div class="metric-card"><div class="metric-val">0.62</div><div class="metric-lbl">Correlación r</div></div>
+    <div class="metric-card"><div class="metric-val">70%</div><div class="metric-lbl">Exactitud alertas</div></div>
+    <div class="metric-card"><div class="metric-val">14</div><div class="metric-lbl">Épocas entrenadas</div></div>
+  </div>
+  <div class="info-card">
+    <h3>Skill score vs persistencia</h3>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:6px">
+      El modelo supera la predicción ingenua (persistencia) en un <strong style="color:#27A567">+17%</strong>.
+    </div>
+    <div class="skill-bar"><div class="skill-fill" style="width:17%"></div></div>
+    <div style="font-size:11px;color:var(--tx3)">RMSE LSTM: 0.7234 vs RMSE Persistencia: 0.8720</div>
+  </div>
+  <div class="info-card">
+    <h3>Precisión por categoría de alerta</h3>
+    <div class="precision-row">
+      <span><span class="cdot" style="background:#0B6E3F;display:inline-block;margin-right:6px"></span>Exceso hídrico</span>
+      <span>P: 0.44 · R: 0.50 · F1: 0.47</span>
+    </div>
+    <div class="precision-row">
+      <span><span class="cdot" style="background:#3B8BD4;display:inline-block;margin-right:6px"></span>Normal</span>
+      <span>P: 0.78 · R: 0.79 · F1: 0.78</span>
+    </div>
+    <div class="precision-row">
+      <span><span class="cdot" style="background:#9B2020;display:inline-block;margin-right:6px"></span>Sequía</span>
+      <span>P: 0.51 · R: 0.48 · F1: 0.50</span>
+    </div>
+  </div>
+  <div class="section-title">Escala SPI</div>
+  <div class="info-card">
+    <div class="scale-row"><div class="cdot" style="background:#0B6E3F"></div><span>>+2.0</span><span style="color:#0B6E3F;font-weight:500;margin-left:auto">Inundación severa</span></div>
+    <div class="scale-row"><div class="cdot" style="background:#27A567"></div><span>+0.95 a +2.0</span><span style="color:#27A567;font-weight:500;margin-left:auto">Exceso hídrico</span></div>
+    <div class="scale-row"><div class="cdot" style="background:#3B8BD4"></div><span>−0.95 a +0.95</span><span style="color:#3B8BD4;font-weight:500;margin-left:auto">Normal</span></div>
+    <div class="scale-row"><div class="cdot" style="background:#E24B4A"></div><span>−0.95 a −1.5</span><span style="color:#E24B4A;font-weight:500;margin-left:auto">Sequía moderada</span></div>
+    <div class="scale-row"><div class="cdot" style="background:#9B2020"></div><span><−1.5</span><span style="color:#9B2020;font-weight:500;margin-left:auto">Sequía severa</span></div>
+    <div style="font-size:11px;color:var(--tx3);margin-top:8px">Umbral calibrado sobre entrenamiento: ±0.95 (F1-macro = 0.607)</div>
+  </div>
+  <div class="section-title">¿Cómo funciona?</div>
+  <div class="info-card">
+    <div class="step-item"><div class="step-num">1</div><div>Open-Meteo API entrega precipitación y temperatura diaria desde 1980 para la zona elegida.</div></div>
+    <div class="step-item"><div class="step-num">2</div><div>Se calcula el SPI-30 (objetivo) y SPI-90 (contexto) con ajuste de distribución gamma.</div></div>
+    <div class="step-item"><div class="step-num">3</div><div>El modelo LSTM bidireccional usa 8 variables (incluyendo ONI/ENSO y humedad de suelo) con ventana de 90 días para predecir el SPI-30 a 15 días.</div></div>
+    <div class="step-item"><div class="step-num">4</div><div>Los eventos extremos ponderan 3.25× más que los normales durante el entrenamiento para mejorar la detección de sequías e inundaciones.</div></div>
+    <div class="tag-row">
+      <span class="tag">Python</span><span class="tag">TensorFlow LSTM</span>
+      <span class="tag">Open-Meteo</span><span class="tag">NOAA ONI</span>
+      <span class="tag">FastAPI</span><span class="tag">GitHub Pages</span>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <div class="bnav-item active" id="nav-inicio" onclick="showSection('inicio')">
+    <span class="bnav-icon">⌂</span>Inicio
+  </div>
+  <div class="bnav-item" id="nav-pred" onclick="showSection('pred')">
+    <span class="bnav-icon">↑</span>Predicción
+  </div>
+  <div class="bnav-item" id="nav-info" onclick="showSection('info')">
+    <span class="bnav-icon">ℹ</span>Info
+  </div>
+</nav>
+
+<script>
+// ── Reemplazá esta URL con la de tu API en Render ──────────
+const API_URL = "https://TU-API.onrender.com";
+
+const ZONAS = [
+  {id:"santafe",    nombre:"Santa Fe"},
+  {id:"rosario",    nombre:"Rosario"},
+  {id:"cordoba",    nombre:"Córdoba"},
+  {id:"parana",     nombre:"Paraná"},
+  {id:"buenosaires",nombre:"Bs. Aires"},
+];
+
+let zonaActual = "santafe";
+let seccion = "inicio";
+let datos = null;
+
+document.addEventListener("DOMContentLoaded", () => { renderZonas(); cargarDatos(); });
+
+function renderZonas() {
+  document.getElementById("zona-scroll").innerHTML = ZONAS.map(z =>
+    `<div class="zona-pill ${z.id===zonaActual?'active':''}"
+          onclick="cambiarZona('${z.id}')">${z.nombre}</div>`
+  ).join("");
+}
+
+function cambiarZona(id) { zonaActual=id; renderZonas(); cargarDatos(); }
+
+async function cargarDatos() {
+  document.getElementById("main-content").innerHTML =
+    `<div class="loading"><div class="spinner"></div>Obteniendo datos climáticos...</div>`;
+  try {
+    const r = await fetch(`${API_URL}/spi/${zonaActual}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    datos = d;
+    renderDatos(d);
+  } catch(e) {
+    document.getElementById("main-content").innerHTML =
+      `<div class="error-box">
+        <div style="font-size:24px;margin-bottom:8px">⚠</div>
+        <div style="font-weight:600;margin-bottom:6px">No se pudo conectar a la API</div>
+        <div style="opacity:.8;font-size:12px">${e.message}</div>
+        <div style="margin-top:10px;font-size:11px;opacity:.5">Verificá que la API esté activa en Render</div>
+      </div>`;
+    document.getElementById("header-sub").textContent = "Error de conexión";
+  }
+}
+
+function renderDatos(d) {
+  const c   = d.condicion_actual;
+  const ts  = new Date(d.actualizado);
+  const hora= ts.toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("header-sub").textContent =
+    `${d.zona} · ${ts.toLocaleDateString("es-AR")} ${hora}`;
+
+  const needle = spiPct(c.spi_30);
+
+  // ENSO badge
+  const ensoColor = c.oni >= 0.5 ? "#27A567" : c.oni <= -0.5 ? "#9B2020" : "#3B8BD4";
+  const ensoBg    = c.oni >= 0.5 ? "rgba(39,165,103,.15)" : c.oni <= -0.5 ? "rgba(155,32,32,.15)" : "rgba(59,139,212,.15)";
+  const ensoHtml  = `<span class="enso-badge" style="background:${ensoBg};color:${ensoColor};border:.5px solid ${ensoColor}">
+    ONI ${c.oni>=0?"+":""}${c.oni.toFixed(2)} — ${c.fase_enso}
+  </span>`;
+
+  // Alerta
+  const alertHtml = c.alerta ? `
+    <div class="alert-box" style="background:${c.nivel<0?"rgba(155,32,32,.15)":"rgba(11,110,63,.15)"};border-color:${c.color}">
+      <span class="alert-icon" style="color:${c.color}">${c.nivel<0?"⚠":"↑"}</span>
+      <div>
+        <div class="alert-title" style="color:${c.color}">${c.categoria}</div>
+        <div class="alert-body" style="color:${c.color}">${c.nivel<0
+          ?"Se recomienda activar riego suplementario y monitorear cultivos en la zona."
+          :"Riesgo de anegamiento. Revisar drenaje y condiciones de siembra."}</div>
+      </div>
+    </div>` : "";
+
+  const sparkHtml = d.sparkline_90d?.length ?
+    `<div class="spark-wrap">
+      <div class="spark-title">Tendencia SPI-30 — últimos 90 días</div>
+      <canvas id="spark" height="55"></canvas>
+    </div>` : "";
+
+  const predHtml = seccion === "pred" ? renderPred(d) : "";
+
+  const mainHtml = seccion !== "pred" ? `
+    <div class="spi-main">
+      <div class="spi-label">Índice SPI-30 · ${d.zona}</div>
+      <div class="spi-value-row">
+        <span class="spi-number" style="color:${c.color}">${c.spi_30>=0?"+":""}${c.spi_30.toFixed(2)}</span>
+        <span class="spi-cat" style="color:${c.color}">${c.categoria}</span>
+      </div>
+      <div class="gauge">
+        <div class="gauge-track"><div class="gauge-needle" style="left:${needle}%"></div></div>
+        <div class="gauge-ends"><span>Seq. severa</span><span>Normal</span><span>Inundación</span></div>
+      </div>
+      <div class="spi-meta">
+        <span>SPI-90: ${c.spi_90>=0?"+":""}${c.spi_90.toFixed(2)}</span>
+        <span>Modelo: ${d.modelo_usado}</span>
+        <span>Tendencia: ${tradTend(d.tendencia)}</span>
+      </div>
+    </div>
+    ${ensoHtml}
+    ${alertHtml}
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Precip. acum. 30d</div>
+        <div class="stat-value">${c.precip_30d_mm.toFixed(0)}<span style="font-size:12px;font-weight:400"> mm</span></div>
+        <div class="stat-sub">Umbral alerta: ±0.95</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Temperatura media</div>
+        <div class="stat-value">${c.temp_media_c.toFixed(1)}<span style="font-size:12px;font-weight:400">°C</span></div>
+        <div class="stat-sub">Hoy</div>
+      </div>
+    </div>
+    ${sparkHtml}` : predHtml;
+
+  document.getElementById("main-content").innerHTML = mainHtml;
+  if (d.sparkline_90d?.length && seccion !== "pred") drawSpark(d.sparkline_90d);
+}
+
+function renderPred(d) {
+  if (!d.prediccion_15_dias) return `<div class="loading">Sin datos</div>`;
+  const filas = d.prediccion_15_dias.map(p => {
+    const w = spiPct(p.spi_predicho);
+    const sg = p.spi_predicho >= 0 ? "+" : "";
+    return `<div class="pred-row">
+      <div class="pred-date">${fmtFecha(p.fecha)}</div>
+      <div class="pred-bar-wrap"><div class="pred-bar" style="width:${w}%;background:${p.color}"></div></div>
+      <div class="pred-val" style="color:${p.color}">${sg}${p.spi_predicho.toFixed(2)}</div>
+    </div>`;
+  }).join("");
+
+  // Comparación con persistencia
+  const c   = d.condicion_actual;
+  const pers= d.persistencia_spi;
+  const pc  = clasificarColor(pers);
+
+  return `
+    <div class="section-title">Predicción LSTM — próximos 15 días</div>
+    <div class="pred-list">${filas}</div>
+    <div class="stat-card" style="margin-top:10px">
+      <div class="stat-label">Comparación vs persistencia (referencia)</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <div>
+          <div style="font-size:11px;color:var(--tx2)">LSTM predice día 15</div>
+          <div style="font-size:18px;font-weight:600;color:${clasificarColor(d.prediccion_15_dias[14].spi_predicho)}">${d.prediccion_15_dias[14].spi_predicho>=0?"+":""}${d.prediccion_15_dias[14].spi_predicho.toFixed(2)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--tx2)">Persistencia</div>
+          <div style="font-size:18px;font-weight:600;color:${pc}">${pers>=0?"+":""}${pers.toFixed(2)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--tx2)">Skill score</div>
+          <div style="font-size:18px;font-weight:600;color:#27A567">+0.17</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--tx3);text-align:center">
+      Modelo: ${d.modelo_usado} · Tendencia: ${tradTend(d.tendencia)}
+    </div>`;
+}
+
+function drawSpark(datos) {
+  const canvas = document.getElementById("spark");
+  if (!canvas) return;
+  const W = canvas.parentElement.offsetWidth - 28;
+  const H = 55;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+"px"; canvas.style.height=H+"px";
+  const ctx = canvas.getContext("2d"); ctx.scale(dpr,dpr);
+  const vals = datos.map(d=>d.spi);
+  const toX = i => (i/(vals.length-1))*(W-18)+9;
+  const toY = v => H-5-((v+3.5)/7)*(H-10);
+
+  ctx.strokeStyle="rgba(255,255,255,0.05)"; ctx.lineWidth=0.5;
+  [-1.5,-1,0,1,2].forEach(v=>{ctx.beginPath();ctx.moveTo(0,toY(v));ctx.lineTo(W,toY(v));ctx.stroke()});
+
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(vals[0]));
+  vals.forEach((v,i)=>ctx.lineTo(toX(i),toY(v)));
+  ctx.lineTo(toX(vals.length-1),H); ctx.lineTo(toX(0),H); ctx.closePath();
+  ctx.fillStyle="rgba(59,139,212,0.08)"; ctx.fill();
+
+  ctx.beginPath(); ctx.moveTo(toX(0),toY(vals[0]));
+  vals.forEach((v,i)=>ctx.lineTo(toX(i),toY(v)));
+  ctx.strokeStyle="#3B8BD4"; ctx.lineWidth=1.5; ctx.stroke();
+
+  const ult=vals[vals.length-1];
+  ctx.beginPath(); ctx.arc(toX(vals.length-1),toY(ult),4,0,Math.PI*2);
+  ctx.fillStyle=clasificarColor(ult); ctx.fill();
+}
+
+function showSection(s) {
+  seccion=s;
+  ["inicio","pred","info"].forEach(x=>document.getElementById("nav-"+x)?.classList.toggle("active",x===s));
+  document.getElementById("info-section").classList.toggle("active",s==="info");
+  document.getElementById("main-section").classList.toggle("hidden",s==="info");
+  if (s!=="info" && datos) renderDatos(datos);
+}
+
+function spiPct(v) { return Math.round(Math.min(100,Math.max(0,((v+3.5)/7)*100))); }
+function tradTend(t) { return t==="mejora"?"↑ mejora":t==="empeora"?"↓ empeora":"→ estable"; }
+function fmtFecha(iso) {
+  const d=new Date(iso); const dias=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+  return `${dias[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}`;
+}
+function clasificarColor(v) {
+  if(isNaN(v)) return "#888";
+  if(v>=2.0) return "#0B6E3F"; if(v>=0.95) return "#27A567";
+  if(v>-0.95) return "#3B8BD4"; if(v>=-1.5) return "#E24B4A";
+  return "#9B2020";
+}
+</script>
+</body>
+</html>
